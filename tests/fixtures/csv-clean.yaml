@@ -1,0 +1,39 @@
+apiVersion: safetwin/v1
+kind: Pipeline
+metadata:
+  name: csv-clean
+  description: Read the CSV files in the inbox, drop rows without an id, trim the text columns, write Parquet to the outbox.
+  tags: [csv, clean]
+  owner: me
+spec:
+  sockets:                         # aliases -> socket IDs (no secrets)
+    inbox:  socket://local-inbox
+    outbox: socket://local-outbox
+
+  nodes:
+    - id: read_csv
+      operator: source.csv
+      socket: inbox
+      config:
+        path: "*.csv"
+        header: true
+
+    - id: drop_incomplete
+      operator: transform.filter
+      inputs: [read_csv]
+      config:
+        expr: "id IS NOT NULL"
+
+    - id: trim_text
+      operator: transform.trim
+      inputs: [drop_incomplete]
+      config:
+        columns: [name, city]
+
+    - id: write_parquet
+      operator: sink.parquet
+      inputs: [trim_text]
+      socket: outbox
+      config:
+        path: "clean/"
+        compression: zstd

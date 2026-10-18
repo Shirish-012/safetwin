@@ -1,0 +1,31 @@
+name: Bug report
+description: Something doesn't work as the docs say.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste real data, sample values or keys here.** Describe column types and shapes, or attach a
+        small made-up file that shows the problem (`safetwin demo` writes one you can start from).
+        Security problems go through SECURITY.md, not here.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `safetwin --version`, and your OS and Python version.
+      placeholder: safetwin 1.0.0, macOS 15, Python 3.12
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command you ran, what you expected, and what happened instead (the ERROR line helps).
+    validations:
+      required: true
+  - type: textarea
+    id: policy
+    attributes:
+      label: The policy, if it matters
+      description: The relevant part of masking.yaml. It holds no key, only a reference; check it holds no values either.
+      render: yaml

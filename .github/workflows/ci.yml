@@ -1,0 +1,148 @@
+# CI runs the same scripts you run locally: scripts/check.sh (its top comment says what each step is) and
+# scripts/smoke.sh (the README's quickstart from a fresh install). The checks run on macOS, the first target
+# OS; the image and the GitHub Action are tried on Linux. The "perf" job only runs when started by hand.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer run on the same ref cancels the one it supersedes. The event is part of the group, so a manual
+# perf run is not cancelled by a push, and does not cancel the run that push started.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-dev.txt
+
+      - name: Set up the dev environment
+        run: PYTHON=python3.12 scripts/bootstrap.sh
+
+      - name: Run the Python checks
+        run: scripts/check.sh --python-only
+
+      - name: Audit the dependencies for known vulnerabilities
+        run: |
+          .venv/bin/python -m pip install --quiet --upgrade pip pip-audit  # the runner's pip is old, and audited too
+          .venv/bin/pip-audit --skip-editable
+
+  package:
+    name: Package and quickstart
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build the wheel, install it fresh, run the README's quickstart
+        run: PYTHON=python scripts/smoke.sh
+
+  docker:
+    name: Container image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Build the image
+        run: docker build -t safetwin:ci .
+
+      - name: Mask the demo inside the image
+        run: |
+          mkdir -m 777 try
+          run() { docker run --rm -v "$PWD/try:/work" -e SAFETWIN_KEY safetwin:ci "$@"; }
+          run --version
+          export SAFETWIN_KEY="$(docker run --rm safetwin:ci key new --print 2>/dev/null)"
+          run demo .
+          run scan data -o masking.yaml
+          run mask masking.yaml
+          test -s try/safe/report.json
+
+  action:
+    name: GitHub Action
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Make the demo, its policy and a throwaway key
+        run: |
+          python -m pip install --quiet .
+          safetwin demo try
+          safetwin scan try/data -o try/masking.yaml
+          echo "SAFETWIN_KEY=$(safetwin key new --print 2>/dev/null)" >> "$GITHUB_ENV"
+
+      - name: Run the action from this repository
+        uses: ./
+        with:
+          policy: try/masking.yaml
+          package: ${{ github.workspace }}
+
+      - name: The twin and its report are there
+        run: test -s try/safe/report.json
+
+  perf:
+    name: Performance (manual runs only)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-dev.txt
+
+      - name: Set up the dev environment
+        run: PYTHON=python3.12 scripts/bootstrap.sh
+
+      - name: Run the Python checks, then the performance checks
+        run: scripts/check.sh --python-only --perf

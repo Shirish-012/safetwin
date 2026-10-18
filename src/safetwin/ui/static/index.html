@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>safetwin</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo" aria-hidden="true">◐</span> safetwin</div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" class="tab" data-tab="mask" aria-selected="true">Mask</button>
+    <button role="tab" class="tab" data-tab="unmask" aria-selected="false">Unmask</button>
+    <button role="tab" class="tab" data-tab="history" aria-selected="false">History</button>
+    <button role="tab" class="tab" data-tab="key" aria-selected="false">Keys</button>
+  </nav>
+</header>
+
+<main>
+  <div id="banner" class="banner" hidden></div>
+
+  <!-- Mask -->
+  <section id="tab-mask" class="panel">
+    <h1>Mask spreadsheets</h1>
+    <p class="lead">Add CSV, Parquet or Excel files. For each file you choose <b>reversible</b> (people with the
+      access key can read the values back) or <b>one-way</b> (no one can), and for each column what to do.</p>
+
+    <div class="step">
+      <h2><span class="num">1</span> Add files</h2>
+      <label class="drop" id="mask-drop">
+        <input type="file" id="mask-input" accept=".csv,.parquet,.xlsx" multiple>
+        <span class="drop-title">Drop files here or <u>choose files</u></span>
+        <span class="muted">CSV, Parquet or Excel (.xlsx: a table per sheet) · they stay on this computer</span>
+      </label>
+      <ul class="files" id="mask-files"></ul>
+      <div class="actions"><button class="primary" id="scan-btn" disabled>Scan files</button></div>
+    </div>
+
+    <div class="step" id="plan-step" hidden>
+      <h2><span class="num">2</span> Choose how to mask each file</h2>
+      <div id="plan"></div>
+      <div class="row">
+        <label for="out-format">Masked files as</label>
+        <select id="out-format">
+          <option value="">the same format as the input</option>
+          <option value="csv">CSV</option>
+          <option value="parquet">Parquet</option>
+          <option value="xlsx">Excel (.xlsx)</option>
+        </select>
+      </div>
+      <p class="muted keyline">Masking with <b id="mask-key-label">…</b> · fingerprint <code id="mask-key-fp">…</code>
+        · <button class="link inline" id="change-key" type="button">change the key</button></p>
+      <div class="actions">
+        <button id="preview-btn" disabled>Preview</button>
+        <button class="primary" id="mask-btn" disabled>Mask files</button>
+        <span class="muted" id="mask-hint">Choose reversible or one-way for every file.</span>
+      </div>
+      <div id="mask-progress" class="progress" hidden>
+        <div id="mask-bar" class="segbar" role="progressbar" aria-label="Masking progress" aria-valuemin="0"
+          aria-valuemax="100" aria-valuenow="0"></div>
+        <span class="muted" id="mask-progress-text"></span>
+      </div>
+      <div id="preview" hidden></div>
+    </div>
+
+    <div class="step" id="result-step" hidden>
+      <h2><span class="num">3</span> Result</h2>
+      <div id="result"></div>
+      <div class="actions">
+        <a class="button primary" id="download-masked" href="#" download>Download masked files (.zip)</a>
+        <button id="save-btn" type="button">Save to a folder…</button>
+        <a class="button" id="open-report" href="#" target="_blank" rel="noopener">Open the report</a>
+        <button id="restart-btn">Start over</button>
+      </div>
+      <div class="card save" id="save-panel" hidden>
+        <h3>Save to a folder</h3>
+        <p class="muted">Pick a folder that Google Drive, Dropbox, OneDrive or iCloud keeps in sync, and the zip goes
+          to the cloud from there. Or type the path of any folder on this computer.</p>
+        <div id="save-folders"></div>
+        <div class="row">
+          <input type="text" id="save-path" placeholder="/Users/you/Library/CloudStorage/…" autocomplete="off"
+            spellcheck="false">
+          <button class="primary" id="save-go" type="button">Save here</button>
+        </div>
+        <p class="muted" id="save-note"></p>
+      </div>
+      <iframe id="report-frame" title="Masking report" sandbox></iframe>
+    </div>
+  </section>
+
+  <!-- Unmask -->
+  <section id="tab-unmask" class="panel" hidden>
+    <h1>Read reversible files back</h1>
+    <p class="lead">Add files that were masked as <b>reversible</b> and give the access key. Columns masked one-way
+      stay masked: nothing can read them back.</p>
+
+    <div class="step">
+      <h2><span class="num">1</span> Add masked files</h2>
+      <label class="drop" id="unmask-drop">
+        <input type="file" id="unmask-input" accept=".csv,.parquet,.xlsx,.json" multiple>
+        <span class="drop-title">Drop masked files here or <u>choose files</u></span>
+        <span class="muted">the .csv, .parquet or .xlsx files from a masked zip, and its report.json</span>
+      </label>
+      <ul class="files" id="unmask-files"></ul>
+    </div>
+
+    <div class="step">
+      <h2><span class="num">2</span> The key</h2>
+      <label class="choice"><input type="radio" name="keysrc" value="mine" checked>
+        <span><b>The key in use</b> <span class="muted" id="mine-fp"></span><br>
+        <span class="muted">for files you masked here with it (the Keys tab changes it)</span></span></label>
+      <label class="choice"><input type="radio" name="keysrc" value="given">
+        <span><b>An access key someone gave me</b><br>
+        <span class="muted">paste it, or choose the key file</span></span></label>
+      <div id="given-key" hidden>
+        <input type="password" id="access-input" placeholder="64 hexadecimal characters" autocomplete="off"
+          spellcheck="false">
+        <label class="button small">Choose key file<input type="file" id="access-file" accept=".txt,.key"
+          hidden></label>
+      </div>
+      <p class="muted">You don't choose the algorithm: every encrypted value says how it was encrypted (standard
+        or random), and the report.json from the same zip names the columns that kept their format. The result
+        lists what was found for each column.</p>
+      <div class="actions"><button class="primary" id="unmask-btn" disabled>Unmask</button></div>
+    </div>
+
+    <div class="step" id="unmask-result-step" hidden>
+      <h2><span class="num">3</span> Result</h2>
+      <div id="unmask-result"></div>
+      <div class="actions">
+        <a class="button primary" id="download-readable" href="#" download>Download readable files (.zip)</a>
+        <button id="unmask-restart">Start over</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- History -->
+  <section id="tab-history" class="panel" hidden>
+    <h1>History</h1>
+    <p class="lead">The reports of your earlier runs on this computer: file names, row counts and methods, never a
+      value. The masked files themselves aren't kept.</p>
+    <div class="step">
+      <div id="history"></div>
+    </div>
+  </section>
+
+  <!-- Keys -->
+  <section id="tab-key" class="panel" hidden>
+    <h1>Keys</h1>
+    <p class="lead">The <b>masking key</b> makes every masked value: the same key gives the same values, so files
+      masked at different times still match. The <b>access key</b> is made from it and reads reversible columns
+      back, nothing else.</p>
+
+    <div class="card">
+      <h2>Masking key</h2>
+      <dl class="facts">
+        <dt>In use</dt><dd><b id="key-label">…</b></dd>
+        <dt>Fingerprint</dt><dd><code id="key-fp">…</code></dd>
+      </dl>
+      <div class="mode keymodes" role="radiogroup" aria-label="Which masking key">
+        <label><input type="radio" name="keymode" value="computer"><span><b>This computer's key</b><br>
+          <span class="muted">kept in a private file here</span></span></label>
+        <label><input type="radio" name="keymode" value="generate"><span><b>A new key</b><br>
+          <span class="muted">random, saved as a file you keep</span></span></label>
+        <label><input type="radio" name="keymode" value="hex"><span><b>My own key</b><br>
+          <span class="muted">a key file, or 64 hex characters</span></span></label>
+        <label><input type="radio" name="keymode" value="passphrase"><span><b>A passphrase</b><br>
+          <span class="muted">the same words give the same key</span></span></label>
+      </div>
+      <div class="keypanel" data-mode="computer" hidden>
+        <p class="muted">Kept in <code id="key-file">…</code>. Back it up: without it, reversible files can't be
+          read back and masked values change.</p>
+        <div class="actions"><button class="primary" type="button" data-use="computer">Use this computer's key</button></div>
+      </div>
+      <div class="keypanel" data-mode="generate" hidden>
+        <p class="muted">A random 256-bit key, the strongest choice. It is shown once: save the key file before
+          you use it.</p>
+        <div class="actions"><button class="primary" type="button" data-use="generate">Make a new key</button></div>
+        <div id="new-key" hidden>
+          <div class="note warn"><b>Save this key now.</b> Without it, files masked with it can't be read back, and
+            masking again gives other values. Keep it in a password manager, not in a shared folder.</div>
+          <code id="new-key-hex" class="keyhex"></code>
+          <div class="actions"><button type="button" id="new-key-save">Download the key file</button></div>
+        </div>
+      </div>
+      <div class="keypanel" data-mode="hex" hidden>
+        <div class="row">
+          <input type="password" id="own-key" placeholder="64 hexadecimal characters" autocomplete="off" spellcheck="false">
+          <label class="button small">Choose key file<input type="file" id="own-key-file" accept=".txt,.key" hidden></label>
+        </div>
+        <div class="actions"><button class="primary" type="button" data-use="hex">Use this key</button></div>
+      </div>
+      <div class="keypanel" data-mode="passphrase" hidden>
+        <div class="row">
+          <input type="password" id="phrase" placeholder="at least 12 characters: several words" autocomplete="new-password">
+          <input type="password" id="phrase2" placeholder="the same again" autocomplete="new-password">
+        </div>
+        <p class="muted">Anyone who types the same passphrase gets the same key, on any computer, so it can be
+          guessed if it is short or common: use four or more random words. A random key is stronger.</p>
+        <div class="actions"><button class="primary" type="button" data-use="passphrase">Use this passphrase</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>What this key does</h2>
+      <p class="muted">The key itself is 256 random bits (or the result of your passphrase). It never masks
+        anything directly: safetwin derives a separate key for each job with HKDF-SHA-256, so one use can't
+        reveal another. Which algorithm a column gets is chosen per file and column on the Mask tab, not
+        here: the same key serves them all.</p>
+      <div class="scroll"><table class="algos">
+        <thead><tr><th>Job</th><th>Algorithm</th><th>Reversible?</th></tr></thead>
+        <tbody>
+          <tr><td>Codes, fake names and emails, date shifts</td><td>HMAC-SHA-256</td><td>No: one-way</td></tr>
+          <tr><td>Encrypted, standard (the default)</td><td>AES-256-SIV</td><td>Yes, with the access key</td></tr>
+          <tr><td>Encrypted, keeps the format</td><td>FF1 (NIST SP 800-38G), AES-256</td><td>Yes, with the access key</td></tr>
+          <tr><td>Encrypted, random</td><td>AES-256-GCM</td><td>Yes, with the access key</td></tr>
+          <tr><td>A key from a passphrase</td><td>scrypt (128 MiB)</td><td>—</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <h2>Access key</h2>
+      <p class="muted">It reads back every <b>reversible</b> column masked with the key above, and nothing else:
+        one-way columns stay unreadable, and the masking key can't be worked out from it.</p>
+      <dl class="facts">
+        <dt>Fingerprint</dt><dd><code id="access-fp">…</code></dd>
+      </dl>
+      <div class="actions"><a class="button primary" href="/api/access-key" download>Download the access key</a></div>
+    </div>
+    <div class="note warn">
+      <b>Give the access key only to people allowed to see the real values</b>, through a password manager or
+      another private channel, never by email or chat. Anyone who has it can read every reversible file. They
+      read files in the <b>Unmask</b> tab of their own safetwin, or with
+      <code>safetwin unmask FOLDER --key file://KEYFILE --out readable</code>.
+    </div>
+  </section>
+</main>
+<footer class="foot">safetwin runs only on this computer: the page talks to 127.0.0.1, and your files never leave
+  it. Stop it with Ctrl-C in the terminal; the files you added are removed then.</footer>
+</body>
+</html>

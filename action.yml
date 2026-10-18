@@ -1,0 +1,70 @@
+# A GitHub Action that runs `safetwin mask`: the safe twin and its report, in a workflow.
+#
+#   - uses: Shirish-012/safetwin@main
+#     with:
+#       policy: masking.yaml
+#     env:
+#       SAFETWIN_KEY: ${{ secrets.SAFETWIN_KEY }}   # the policy says key: env://SAFETWIN_KEY
+#
+# The twin and report.json/report.html go to the policy's target folder (or `out`); upload them with
+# actions/upload-artifact. The run fails (and leaves no twin) when a check fails. Inputs reach the shell only
+# through environment variables, never inside the script text.
+name: safetwin mask
+description: Write a safe twin of your data (masked, joins intact) and the report that proves it.
+author: safetwin
+branding:
+  icon: shield
+  color: green
+
+inputs:
+  policy:
+    description: The masking policy (YAML).
+    required: true
+  source:
+    description: Read the source from this folder instead of the policy's source.folder.
+    required: false
+    default: ""
+  out:
+    description: Write the twin to this folder instead of the policy's target.folder.
+    required: false
+    default: ""
+  strict:
+    description: Also fail on warnings ("true" or "false").
+    required: false
+    default: "false"
+  package:
+    description: What to install with pip, such as "safetwin==1.0.0" once it is on PyPI. Empty (the default) installs the copy of safetwin this action comes from.
+    required: false
+    default: ""
+  python-version:
+    description: The Python to run safetwin with.
+    required: false
+    default: "3.12"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install safetwin
+      shell: bash
+      env:
+        PACKAGE: ${{ inputs.package }}
+      run: python -m pip install --quiet --disable-pip-version-check "${PACKAGE:-$GITHUB_ACTION_PATH}"
+
+    - name: Mask
+      shell: bash
+      env:
+        POLICY: ${{ inputs.policy }}
+        SOURCE: ${{ inputs.source }}
+        OUT: ${{ inputs.out }}
+        STRICT: ${{ inputs.strict }}
+      run: |
+        args=(mask "$POLICY")
+        if [ -n "$SOURCE" ]; then args+=(--source "$SOURCE"); fi
+        if [ -n "$OUT" ]; then args+=(--out "$OUT"); fi
+        if [ "$STRICT" = "true" ]; then args+=(--strict); fi
+        safetwin "${args[@]}"

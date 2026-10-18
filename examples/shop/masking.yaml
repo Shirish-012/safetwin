@@ -1,0 +1,37 @@
+# The masking policy of the example shop (examples/shop/generate.py makes the data).
+#
+#   python examples/shop/generate.py /tmp/shop
+#   export SAFETWIN_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")   # or: safetwin key new --print
+#   safetwin mask examples/shop/masking.yaml --source /tmp/shop --out /tmp/safe
+#
+# Relative folders are relative to this file; --source and --out override them.
+apiVersion: safetwin/v1
+kind: MaskingPolicy
+metadata:
+  name: shop-to-staging
+  description: The example shop, masked for a staging database.
+spec:
+  source: { folder: ./data, format: parquet }
+  target: { folder: ./safe, format: parquet }
+  key: env://SAFETWIN_KEY
+  unknown_columns: fail
+  tables:
+    customers:
+      id:          { method: pseudonymize, domain: customer }
+      full_name:   { method: fake, kind: name }
+      email:       { method: fake, kind: email }
+      phone:       null
+      birth_date:  { method: generalize, to: year }
+      postcode:    { method: generalize, keep_chars: 3 }
+      city:        keep
+      notes:       drop
+      created_at:  { method: date_shift, entity: id }
+    orders:
+      id:          keep
+      customer_id: { method: pseudonymize, domain: customer }
+      card_number: { method: redact, keep_last: 4 }
+      ip_address:  { method: generalize, ip: true }
+      placed_at:   { method: date_shift, entity: customer_id }
+      total:       keep
+  relationships:
+    - orders.customer_id -> customers.id

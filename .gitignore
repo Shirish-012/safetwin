@@ -1,0 +1,63 @@
+# What git must never hold. safetwin handles personal data and keys: when in doubt, it stays out.
+
+# --- Keys and secrets --------------------------------------------------------------------------------------
+# A safetwin key (masking or access) is 64 hex characters in a file: keep it in a secret store, never here.
+*.key
+*access-key*.txt
+*masking-key*.txt
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# --- Data, real or masked ----------------------------------------------------------------------------------
+# The example shop is generated (`safetwin demo`), so no data file is ever committed.
+*.csv
+*.tsv
+*.parquet
+*.xlsx
+*.xls
+*.sqlite
+*.sqlite3
+*.db
+*.zip
+data/
+safe/
+safe-*/
+masked/
+readable/
+try/
+report.html
+report.json
+failed-report.*
+
+# --- Python, tools and builds ------------------------------------------------------------------------------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+*.log
+node_modules/
+
+# --- Editors, operating systems and local notes ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+.claude/
+.scratch/

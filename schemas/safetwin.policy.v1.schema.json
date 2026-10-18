@@ -1,0 +1,768 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:safetwin:schemas:policy:v1",
+  "$defs": {
+    "DateShift": {
+      "additionalProperties": false,
+      "description": "Move every date of an entity by the same keyed offset (never 0 days).",
+      "properties": {
+        "method": {
+          "const": "date_shift",
+          "title": "Method",
+          "type": "string"
+        },
+        "entity": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Entity",
+          "type": "string"
+        },
+        "max_days": {
+          "default": 30,
+          "maximum": 36500,
+          "minimum": 1,
+          "title": "Max Days",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "method",
+        "entity"
+      ],
+      "title": "DateShift",
+      "type": "object"
+    },
+    "Drop": {
+      "additionalProperties": false,
+      "description": "Leave the column out of the output.",
+      "properties": {
+        "method": {
+          "const": "drop",
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "Drop",
+      "type": "object"
+    },
+    "Encrypt": {
+      "additionalProperties": false,
+      "description": "Reversible: whoever holds the key's access key (or the key) reads the values back with `safetwin\nunmask`. `algorithm`:\n\n- `aes-siv` (the default): equal inputs give equal outputs, in every column, so relationships hold;\n- `aes-gcm`: a random nonce per value, so equal inputs give different outputs (no relationship, nothing\n  shows which values are equal); any AES-GCM library decrypts it;\n- `ff1`: format-preserving (NIST SP 800-38G) on a text column: the characters of `alphabet` (`digits`,\n  the default, or `alphanumeric`) are encrypted, every other one stays, and the length stays. `domain`\n  is its tweak: columns that join need the same one. A value with too few such characters (6 digits, 4\n  letters or digits) is emptied.",
+      "properties": {
+        "method": {
+          "const": "encrypt",
+          "title": "Method",
+          "type": "string"
+        },
+        "algorithm": {
+          "default": "aes-siv",
+          "enum": [
+            "aes-siv",
+            "aes-gcm",
+            "ff1"
+          ],
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "alphabet": {
+          "anyOf": [
+            {
+              "enum": [
+                "digits",
+                "alphanumeric"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alphabet"
+        },
+        "domain": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Domain"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "Encrypt",
+      "type": "object"
+    },
+    "Fake": {
+      "additionalProperties": false,
+      "description": "Realistic text of a kind, consistent per input (keyed) or random per row.",
+      "properties": {
+        "method": {
+          "const": "fake",
+          "title": "Method",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "name",
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "street",
+            "city",
+            "company",
+            "text"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "locale": {
+          "const": "en",
+          "default": "en",
+          "title": "Locale",
+          "type": "string"
+        },
+        "consistent": {
+          "default": true,
+          "title": "Consistent",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "method",
+        "kind"
+      ],
+      "title": "Fake",
+      "type": "object"
+    },
+    "Generalize": {
+      "additionalProperties": false,
+      "description": "A coarser value of the same type: exactly one of `to`, `bucket`, `bins`, `keep_chars` and `ip`.",
+      "properties": {
+        "method": {
+          "const": "generalize",
+          "title": "Method",
+          "type": "string"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "enum": [
+                "year",
+                "month",
+                "week",
+                "day"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "To"
+        },
+        "bucket": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bucket"
+        },
+        "bins": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "maxItems": 1000,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bins"
+        },
+        "keep_chars": {
+          "anyOf": [
+            {
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Keep Chars"
+        },
+        "ip": {
+          "anyOf": [
+            {
+              "const": true,
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ip"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "Generalize",
+      "type": "object"
+    },
+    "Keep": {
+      "additionalProperties": false,
+      "description": "Copy the column as it is.",
+      "properties": {
+        "method": {
+          "const": "keep",
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "Keep",
+      "type": "object"
+    },
+    "Null": {
+      "additionalProperties": false,
+      "description": "Replace every value by null (the column and its type stay).",
+      "properties": {
+        "method": {
+          "const": "null",
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "Null",
+      "type": "object"
+    },
+    "PolicyMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "PolicyMetadata",
+      "type": "object"
+    },
+    "PolicySpec": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "target": {
+          "$ref": "#/$defs/Target"
+        },
+        "key": {
+          "minLength": 1,
+          "title": "Key",
+          "type": "string"
+        },
+        "unknown_columns": {
+          "default": "fail",
+          "enum": [
+            "fail",
+            "null",
+            "drop"
+          ],
+          "title": "Unknown Columns",
+          "type": "string"
+        },
+        "tables": {
+          "minProperties": 1,
+          "patternProperties": {
+            "^[a-z][a-z0-9_]{0,62}$": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "discriminator": {
+                      "mapping": {
+                        "date_shift": "#/$defs/DateShift",
+                        "drop": "#/$defs/Drop",
+                        "encrypt": "#/$defs/Encrypt",
+                        "fake": "#/$defs/Fake",
+                        "generalize": "#/$defs/Generalize",
+                        "keep": "#/$defs/Keep",
+                        "null": "#/$defs/Null",
+                        "pseudonymize": "#/$defs/Pseudonymize",
+                        "redact": "#/$defs/Redact"
+                      },
+                      "propertyName": "method"
+                    },
+                    "oneOf": [
+                      {
+                        "$ref": "#/$defs/Keep"
+                      },
+                      {
+                        "$ref": "#/$defs/Null"
+                      },
+                      {
+                        "$ref": "#/$defs/Drop"
+                      },
+                      {
+                        "$ref": "#/$defs/Encrypt"
+                      },
+                      {
+                        "$ref": "#/$defs/Pseudonymize"
+                      },
+                      {
+                        "$ref": "#/$defs/Fake"
+                      },
+                      {
+                        "$ref": "#/$defs/Generalize"
+                      },
+                      {
+                        "$ref": "#/$defs/DateShift"
+                      },
+                      {
+                        "$ref": "#/$defs/Redact"
+                      }
+                    ]
+                  },
+                  {
+                    "enum": [
+                      "keep",
+                      "null",
+                      "drop"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "minProperties": 1,
+              "propertyNames": {
+                "maxLength": 256,
+                "minLength": 1
+              },
+              "type": "object"
+            }
+          },
+          "title": "Tables",
+          "type": "object"
+        },
+        "relationships": {
+          "items": {
+            "pattern": "^\\s*([a-z][a-z0-9_]*)\\.(\\S+)\\s*->\\s*([a-z][a-z0-9_]*)\\.(\\S+)\\s*$",
+            "type": "string"
+          },
+          "title": "Relationships",
+          "type": "array"
+        },
+        "subset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Subset"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "source",
+        "target",
+        "key",
+        "tables"
+      ],
+      "title": "PolicySpec",
+      "type": "object"
+    },
+    "Pseudonymize": {
+      "additionalProperties": false,
+      "description": "A keyed, deterministic replacement: equal inputs give equal outputs within a domain.",
+      "properties": {
+        "method": {
+          "const": "pseudonymize",
+          "title": "Method",
+          "type": "string"
+        },
+        "domain": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Domain"
+        },
+        "format": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "hex",
+            "int",
+            "uuid"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "prefix": {
+          "default": "",
+          "pattern": "^[A-Za-z0-9_:.-]{0,32}$",
+          "title": "Prefix",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "Pseudonymize",
+      "type": "object"
+    },
+    "Redact": {
+      "additionalProperties": false,
+      "description": "Hide characters: keep the last or first N (the rest become `char`), or replace the whole value.",
+      "properties": {
+        "method": {
+          "const": "redact",
+          "title": "Method",
+          "type": "string"
+        },
+        "keep_last": {
+          "anyOf": [
+            {
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Keep Last"
+        },
+        "keep_first": {
+          "anyOf": [
+            {
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Keep First"
+        },
+        "char": {
+          "default": "*",
+          "maxLength": 1,
+          "minLength": 1,
+          "title": "Char",
+          "type": "string"
+        },
+        "with": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "With"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "Redact",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "Where the production data is: a folder of CSV, Parquet or Excel files (one table per file stem by\ndefault; one per sheet for a workbook with several), or a Postgres schema (read-only).",
+      "properties": {
+        "folder": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Folder"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "enum": [
+                "csv",
+                "parquet",
+                "xlsx"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Format"
+        },
+        "tables": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_]{0,62}$": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tables"
+        },
+        "delimiter": {
+          "default": ",",
+          "pattern": "^[\\t -~]$",
+          "title": "Delimiter",
+          "type": "string"
+        },
+        "postgres": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Postgres"
+        },
+        "schema": {
+          "default": "public",
+          "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+          "title": "Schema",
+          "type": "string"
+        }
+      },
+      "title": "Source",
+      "type": "object"
+    },
+    "Subset": {
+      "additionalProperties": false,
+      "description": "A smaller twin (docs/guide.md): `fraction` of the rows of `root`, chosen by a keyed hash of its\n`key` column (stable across runs), plus every row that keeps the relationships valid.",
+      "properties": {
+        "root": {
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "title": "Root",
+          "type": "string"
+        },
+        "fraction": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "gt": 0,
+          "le": 1,
+          "title": "Fraction"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Key"
+        },
+        "include_children": {
+          "default": true,
+          "title": "Include Children",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "root",
+        "fraction"
+      ],
+      "title": "Subset",
+      "type": "object"
+    },
+    "Target": {
+      "additionalProperties": false,
+      "description": "Where the safe twin goes. `safetwin mask --out` overrides the folder. With `postgres`, the twin goes\ninto that database's `schema` (never the source's), and the folder gets the report.",
+      "properties": {
+        "folder": {
+          "minLength": 1,
+          "title": "Folder",
+          "type": "string"
+        },
+        "format": {
+          "default": "parquet",
+          "enum": [
+            "csv",
+            "parquet",
+            "xlsx"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "compression": {
+          "const": "zstd",
+          "default": "zstd",
+          "title": "Compression",
+          "type": "string"
+        },
+        "postgres": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Postgres"
+        },
+        "schema": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schema"
+        }
+      },
+      "required": [
+        "folder"
+      ],
+      "title": "Target",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A policy file.",
+  "properties": {
+    "apiVersion": {
+      "const": "safetwin/v1",
+      "title": "Apiversion",
+      "type": "string"
+    },
+    "kind": {
+      "const": "MaskingPolicy",
+      "title": "Kind",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/$defs/PolicyMetadata"
+    },
+    "spec": {
+      "$ref": "#/$defs/PolicySpec"
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
+  "title": "MaskingPolicy",
+  "type": "object"
+}

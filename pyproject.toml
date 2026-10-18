@@ -1,0 +1,125 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "safetwin"
+version = "1.0.0"
+description = "Safe twins of production data: realistic, privacy-safe copies for development, testing and CI."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Shirish-012" }]
+keywords = ["data masking", "pseudonymization", "test data", "privacy", "gdpr", "polars", "subsetting"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Security",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2.7",
+    "PyYAML>=6",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "polars>=1.44,<2",
+    "pyarrow>=21",
+    # 1.5: `to_arrow_reader`, which the hybrid path reads the results of DuckDB with (1.4 has none)
+    "duckdb>=1.5",
+    "psutil>=6",
+    # The control API (api/). uvicorn without [standard]: h11 and the sans-I/O protocol of websockets are
+    # passed to it by class, so httptools, uvloop and watchfiles are not needed.
+    "fastapi>=0.142",
+    "uvicorn>=0.54",
+    "websockets>=17",
+    "typer>=0.12",
+    # AES-SIV (RFC 5297) for the reversible method, `encrypt`: a vetted implementation, not our own.
+    "cryptography>=46",
+    # Postgres sources and targets: the ADBC driver reads straight into Arrow (libpq is in its wheel).
+    "adbc-driver-postgresql>=1.8",
+    # Excel sources and targets: read with calamine (fastexcel), written with xlsxwriter.
+    "fastexcel>=0.14",
+    "xlsxwriter>=3.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/Shirish-012/safetwin"
+Documentation = "https://github.com/Shirish-012/safetwin/blob/main/docs/guide.md"
+Issues = "https://github.com/Shirish-012/safetwin/issues"
+Changelog = "https://github.com/Shirish-012/safetwin/blob/main/CHANGELOG.md"
+
+[project.scripts]
+safetwin = "safetwin.cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/safetwin"]
+
+# The source distribution lists what it holds, so nothing else in a working copy ends up in it.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/docs",
+    "/examples",
+    "/schemas",
+    "/scripts",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/requirements-dev.txt",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = ["*.md"]  # newer ruff also formats Markdown; docs/ and README.md are written by hand
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "C4",  # flake8-comprehensions
+    "PT",  # flake8-pytest-style
+    "RUF", # ruff-specific
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["safetwin"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true                 # covers the whole safetwin package
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["pyarrow", "pyarrow.*"]   # PyArrow ships no type hints: its names are Any
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib -m 'not perf'"
+markers = [
+    "perf: performance regression checks, left out of a default run (run them with -m perf -s)",
+    "slow: slow tests (deselect with -m 'not slow')",
+]
+# Starlette's test client warns that it will move from httpx to httpx2: a note about the library, not about us.
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated"]

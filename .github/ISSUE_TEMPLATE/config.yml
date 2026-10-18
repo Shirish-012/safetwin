@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/Shirish-012/safetwin/security/advisories/new
+    about: Report it privately (the Security tab's "Report a vulnerability"), as SECURITY.md says.

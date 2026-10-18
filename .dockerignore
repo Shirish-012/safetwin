@@ -1,0 +1,35 @@
+# The image is built from the package and its metadata only (see Dockerfile). Everything else in a working
+# copy (data, keys, virtual environments, caches) is left out of the build context.
+
+# --- Allow only what the image needs -----------------------------------------------------------------------
+*
+!pyproject.toml
+!README.md
+!LICENSE
+!src/
+
+# --- Even inside src/, never these (should one be left there by mistake) ----------------------------------
+**/__pycache__
+**/*.py[cod]
+**/.DS_Store
+# keys and secrets
+**/*.key
+**/*access-key*.txt
+**/*masking-key*.txt
+**/.env
+**/.env.*
+**/*.pem
+**/*.p12
+**/*.pfx
+**/secrets
+# data, real or masked
+**/*.csv
+**/*.tsv
+**/*.parquet
+**/*.xlsx
+**/*.xls
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+**/*.zip
+**/*.log

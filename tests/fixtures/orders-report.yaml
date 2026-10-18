@@ -1,0 +1,67 @@
+apiVersion: safetwin/v1
+kind: Pipeline
+metadata:
+  name: orders-report
+  description: Land the paid orders as Parquet, then write a summary per country, largest first.
+  tags: [csv, sql, two-stages]
+  owner: data-team
+spec:
+  sockets:
+    inbox:  socket://local-inbox
+    outbox: socket://local-outbox
+
+  nodes:
+    - id: read_orders
+      operator: source.csv
+      socket: inbox
+      config:
+        path: "orders/*.csv"
+        has_header: true
+        delimiter: ","
+
+    - id: keep_paid
+      operator: transform.filter
+      inputs: [read_orders]
+      config:
+        expr: "status = 'paid' AND amount IS NOT NULL"
+
+    - id: typed
+      operator: transform.cast
+      inputs: [keep_paid]
+      config:
+        columns:
+          amount: float
+          placed_on: date
+
+    - id: land_orders
+      operator: sink.parquet
+      inputs: [typed]
+      socket: outbox
+      config:
+        path: "orders/dt={yyyy}-{MM}-{dd}/"
+
+    - id: per_country
+      operator: transform.sql
+      inputs: [land_orders]
+      config:
+        sql: |
+          SELECT country,
+                 count(*)    AS orders,
+                 sum(amount) AS amount
+          FROM input
+          GROUP BY country
+
+    - id: largest_first
+      operator: transform.sort
+      inputs: [per_country]
+      config:
+        by:
+          - {column: amount, descending: true}
+          - country
+
+    - id: write_summary
+      operator: sink.parquet
+      inputs: [largest_first]
+      socket: outbox
+      config:
+        path: "summary/"

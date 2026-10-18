@@ -1,0 +1,11 @@
+pytest
+hypothesis
+ruff
+mypy
+types-PyYAML
+jsonschema
+types-psutil
+httpx
+# A Postgres server in a wheel, for the Postgres tests (no Docker, nothing installed system-wide). It has wheels
+# for macOS and x86-64 Linux only; elsewhere the Postgres tests are skipped.
+pgserver; sys_platform == "darwin" or platform_machine == "x86_64"
